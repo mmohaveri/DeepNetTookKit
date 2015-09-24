@@ -1,0 +1,9 @@
+#Datasets
+*.csv
+*.pkl
+*.jpg
+datasets/
+
+#Compiled files
+*.pyc
+
