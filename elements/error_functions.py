@@ -4,6 +4,7 @@ a set of cost functions for Neural Network layers.
 
 import theano.tensor as T
 
+
 def zero_one_error(prediction, target):
     """
     Return a float representing number of errors (miss-classifications) in the mini-batch
@@ -21,7 +22,8 @@ def zero_one_error(prediction, target):
 
     # safty checks first
     if prediction.ndim != target.ndim:
-        raise TypeError( 'prediction and target should have the same size \n prediction: %d, target: %d'%(prediction.ndim, target.ndim))
+        raise TypeError('prediction and target should have the same size \n prediction: %d, target: %d' %
+                        (prediction.ndim, target.ndim))
 
     if not prediction.dtype.startswith('int'):
         raise TypeError("prediction should be int, it's %s"%prediction.dtype)
@@ -31,13 +33,14 @@ def zero_one_error(prediction, target):
 
     return T.mean(T.neq(prediction, target))
 
-def negative_log_likelihood_error(cond_prob, target):
-        """
-        Return the mean of the negative log-likelihood of the prediction
-        of predictions(conditional probability of a label given an input) under a given target distribution.
 
-        :type cond_prob: theano.tensor.TensorType
-        :param cond_prob: corresponds to a matrix with conditional probabilities of each label given inputs.
+def negative_log_likelihood_error(cond_prob, target):
+    """
+    Return the mean of the negative log-likelihood of the prediction
+    of predictions(conditional probability of a label given an input) under a given target distribution.
+
+    :type cond_prob: theano.tensor.TensorType
+    :param cond_prob: corresponds to a matrix with conditional probabilities of each label given inputs.
 
     :type target: theano.tensor.TensorType
     :param target: target value
@@ -60,16 +63,17 @@ def negative_log_likelihood_error(cond_prob, target):
     # for more clear explanation, check log-likelihood definition
     return -T.mean(T.log(cond_prob)[T.arange(target.shape[0]), target])
 
-def squered_error(prediction, target):
+
+def squared_error(prediction, target):
     """
-    Return the mean of the squared errorof the prediction
+    Return the mean of the squared error of the prediction
     of this model under a given target distribution.
 
     :type prediction: theano.tensor.TensorType
     :param prediction: corresponds to a vector that gives for each example the predicted label
 
-    :type label: theano.tensor.TensorType
-    :param label: corresponds to a vector that gives for each example the correct label
+    :type target: theano.tensor.TensorType
+    :param target: corresponds to a vector that gives for each example the correct label
     """
 
     return T.mean((prediction-target)**2)

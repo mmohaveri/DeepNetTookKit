@@ -1,11 +1,10 @@
-import theano
 import theano.tensor as T
-
 """
 A set of activation functions for Neural Network layers.
 They're in the form of class so we can take advantage of constructor
 to set initial value for some parameters.
 """
+
 
 def tanh(x):
     """
@@ -16,6 +15,7 @@ def tanh(x):
     """
     return T.tanh(x)
 
+
 def sigmoid(x):
     """
     sigmoid function (0 to 1, (tanh(x)+1)/2).
@@ -25,14 +25,16 @@ def sigmoid(x):
     """
     return (T.tanh(x)+1)/2
 
-def linier(x):
+
+def linear(x):
     """
-    linier function.
+    linear function.
 
     @input: x, theano shared variable.
     @output: x
     """
     return x
+
 
 def relu_generator(alpha=0):
     """
@@ -60,5 +62,5 @@ def relu_generator(alpha=0):
 #   radial basis function.
 
 #   @input: x, theano shared variable.
-#   @output: Not Implimented
+#   @output: Not Implemented
 #   """

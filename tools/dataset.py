@@ -2,8 +2,9 @@ import cPickle
 import theano
 import numpy
 import csv
-import sys
 import logging
+import theano.tensor as T
+
 
 class DataSet:
     """
@@ -19,14 +20,13 @@ class DataSet:
     Note that not-pre-fixed variables should be theano.shared
     and np_ pre-fixed variables should be numpy.2D-array
     """
-    def get_number_of_batches(self, batch_size):
-        n_tr_batches = self.np_tr_x.shape[0] / batch_size
-        n_va_batches = self.np_va_x.shape[0] / batch_size
-        n_te_batches = self.np_te_x.shape[0] / batch_size
 
-        return n_tr_batches, n_va_batches, n_te_batches
+    def __init__(self, is_int=False):
+        """
+        This SHOULD BE Called at the of __init__ of child class.
+        """
+        logging.info("Converting dataset to shared variable")
 
-    def make_it_shared(is_int=False):
         self.tr_y = DataSet.get_shared(self.np_tr_y, is_int=is_int)
         self.va_y = DataSet.get_shared(self.np_va_y, is_int=is_int)
         self.te_y = DataSet.get_shared(self.np_te_y, is_int=is_int)
@@ -35,8 +35,17 @@ class DataSet:
         self.va_x = DataSet.get_shared(self.np_va_x)
         self.te_x = DataSet.get_shared(self.np_te_x)
 
-    def get_datasets():
-        return (self.tr_x, self.tr_y, self.v_x, self.v_y, self.te_x, self.te_y)
+        logging.info("Loading dataset is done.")
+
+    def get_number_of_batches(self, batch_size):
+        n_tr_batches = self.np_tr_x.shape[0] / batch_size
+        n_va_batches = self.np_va_x.shape[0] / batch_size
+        n_te_batches = self.np_te_x.shape[0] / batch_size
+
+        return n_tr_batches, n_va_batches, n_te_batches
+
+    def get_dataset(self):
+        return self.tr_x, self.tr_y, self.va_x, self.va_y, self.te_x, self.te_y
 
     @staticmethod
     def get_shared(data, borrow=True, is_int=False):
@@ -48,9 +57,7 @@ class DataSet:
         is needed (the default behaviour if the data is not in a shared
         variable) would lead to a large decrease in performance.
         """
-        shared = theano.shared(numpy.asarray(data,
-                                               dtype=theano.config.floatX),
-                                               borrow=borrow)
+        shared = theano.shared(numpy.asarray(data, dtype=theano.config.floatX), borrow=borrow)
 
         if is_int:
             # When storing data on the GPU it has to be stored as floats
@@ -84,43 +91,42 @@ class CSVDataset(DataSet):
             logging.fatal("Sum of train ratio and valid ratio should be less than or equal to 1")
             raise Exception("Sum of train ratio and valid ratio should be less than or equal to 1")
 
-        if train_ratio < 0 or valid_ratio <0:
+        if train_ratio < 0 or valid_ratio < 0:
             logging.fatal("Train ratio and valid ratio should be more than 0")
             raise Exception("Train ratio and valid ratio should be more than 0")
 
-        with f1 as open(dataset_file, 'rb'):
+        with open(dataset_file, 'rb') as f1:
             logging.info("Reading dataset from CSV file")
-            CSVfile = csv.reader(f1)
-            ascii_dataset = (row for row in CSVfile)
+            csv_file = csv.reader(f1)
+            ascii_dataset = (row for row in csv_file)
             float_dataset = ((float(cell) for cell in row) for row in ascii_dataset)
 
             logging.info("Creating dataset from file's data")
-            Targets = (row[0:target_size] for row in float_dataset)
-            Features = (row[target_size:] for row in float_dataset)
+            targets = (row[0:target_size] for row in float_dataset)
+            features = (row[target_size:] for row in float_dataset)
 
-            numberOfTrain = int(np.floor(len(Targets) * train_ratio))
-            numberOfValidation = int(np.floor(len(Targets) * valid_ratio))
+            number_of_train = int(numpy.floor(len(targets) * train_ratio))
+            number_of_validation = int(numpy.floor(len(targets) * valid_ratio))
 
-            self.np_tr_y = numpy.array(Targets[0:numberOfTrain])
-            self.np_va_y = numpy.array(Targets[numberOfTrain:(numberOfTrain+numberOfValidation)])
-            self.np_te_y = numpy.array(Targets[(numberOfTrain+numberOfValidation):])
+            self.np_tr_y = numpy.array(targets[0:number_of_train])
+            self.np_va_y = numpy.array(targets[number_of_train:(number_of_train+number_of_validation)])
+            self.np_te_y = numpy.array(targets[(number_of_train+number_of_validation):])
 
-            self.np_tr_x = numpy.array(Features[0:numberOfTrain])
-            self.np_va_x = numpy.array(Features[numberOfTrain:(numberOfTrain+numberOfValidation)])
-            self.np_te_x = numpy.array(Features[(numberOfTrain+numberOfValidation):])
+            self.np_tr_x = numpy.array(features[0:number_of_train])
+            self.np_va_x = numpy.array(features[number_of_train:(number_of_train+number_of_validation)])
+            self.np_te_x = numpy.array(features[(number_of_train+number_of_validation):])
 
-            AllDataSet = ((self.np_tr_x, self.np_tr_y),
-                          (self.np_va_x, self.np_va_y),
-                          (self.np_te_x, self.np_te_y),
-                          is_int)
+            all_dataset = ((self.np_tr_x, self.np_tr_y),
+                           (self.np_va_x, self.np_va_y),
+                           (self.np_te_x, self.np_te_y),
+                           is_int)
 
-            with f2 as open("%s.pkl"%dataset_file, 'wb'):
+            with open("%s.pkl" % dataset_file, 'wb') as f2:
                 logging.info("Writing dataset into a file")
-                cPickle.dump(AllDataSet,f2,2)
+                cPickle.dump(all_dataset, f2, 2)
 
-            logging.info("Converting dataset to shared variable")
-            self.make_it_shared(is_int)
-            logging.info("Loading dataset is done.")
+        super(CSVDataset, self).__init__(is_int)
+
 
 class NumpyDataset(DataSet):
     """
@@ -134,16 +140,14 @@ class NumpyDataset(DataSet):
     """
 
     def __init__(self, dataset_file):
-        with f as open(dataset_file, 'rb'):
+        with open(dataset_file, 'rb') as f:
             logging.info("Reading dataset from Pickle file")
 
-            AllDataSet = cPickle.load(f)
+            all_dataset = cPickle.load(f)
 
-            self.np_tr_x, self.np_tr_y = AllDataSet[0]
-            self.np_va_x, self.np_va_y = AllDataSet[1]
-            self.np_te_x, self.np_te_y = AllDataSet[2]
-            is_int = AllDataSet[3]
+            self.np_tr_x, self.np_tr_y = all_dataset[0]
+            self.np_va_x, self.np_va_y = all_dataset[1]
+            self.np_te_x, self.np_te_y = all_dataset[2]
+            is_int = all_dataset[3]
 
-            logging.info("Converting dataset to shared variable")
-            self.make_it_shared(is_int)
-            logging.info("Loading dataset is done.")
+        super(NumpyDataset, self).__init__(is_int)

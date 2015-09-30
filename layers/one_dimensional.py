@@ -4,14 +4,15 @@ import theano.tensor as T
 import time
 
 from elements.cost_functions import l1_norm, l2_norm, l2_norm_sqr
-from elements.erro_functions import negative_log_likelihood_error, zero_one_error
+from elements.error_functions import negative_log_likelihood_error, zero_one_error
+
 
 class BaseLayer:
     """
     Base class for all neural network layers.
     """
 
-    def __init__(self, n_in, n_out, input, activation=None, rng=None, W=None, b=None, W_values=None, b_values=None):
+    def __init__(self, n_in, n_out, layer_input, activation=None, rng=None, w=None, b=None, w_values=None, b_values=None):
         """
         :type rng: numpy.random.RandomState
         :param rng: a random number generator used to initialize weights
@@ -20,8 +21,8 @@ class BaseLayer:
         :param n_in: number of input units, the dimension of the space in
                      which the datapoints lie
 
-        :type W: theano.tensor.TensorType
-        :param W: Theano variable pointing to a set of weights that should be
+        :type w: theano.tensor.TensorType
+        :param w: Theano variable pointing to a set of weights that should be
                   shared with another architecture or if the weights should be initialize in any other way than random.
                   If the layer should be standalone and the weitght should initialized to random, leave this to None.
 
@@ -30,8 +31,8 @@ class BaseLayer:
                   shared with another architecture or if the biases should be initialize in any other way than random.
                   If the layer should be standalone and the biases should initialized to random, leave this to None.
 
-        :type W_values: numpy.matrix
-        :param W_values: initial value for W
+        :type w_values: numpy.matrix
+        :param w_values: initial value for W
 
         :type b_values: numpy.matrix
         :param b_values: initial value for b
@@ -43,10 +44,10 @@ class BaseLayer:
         :type activation: theano.Op or function that works on theano.tensor.TensorType
         :param activation: Non linearity to be applied in the hidden layer
 
-        :type input: theano.tensor.TensorType
-        :param input: symbolic variable that describes the input of the architecture (one minibatch)
+        :type layer_input: theano.tensor.TensorType
+        :param layer_input: symbolic variable that describes the input of the architecture (one minibatch)
         """
-        self.input = input
+        self.input = layer_input
 
         self.n_in = n_in
         self.n_out = n_out
@@ -54,37 +55,35 @@ class BaseLayer:
         self.activation = activation
 
         if rng in None:
-            if DEBUG:
-                self.rng = numpy.random.RandomState(1234)
-            else:
-                self.rng = numpy.random.RandomState(int(time.time()))
+            self.rng = numpy.random.RandomState(int(time.time()))
         else:
             self.rng = rng
 
-        if W is None:
-            if W_values in None:
-                AbsBandOfWeights = numpy.sqrt(6. / (n_in + n_out))
-                W_values = numpy.asarray(self.rng.uniform(low=-AbsBandOfWeights,\
-                                                       high=AbsBandOfWeights,\
-                                                       size=(n_in, n_out)),\
-                                                       dtype = theano.config.floatX)
-            self.W = theano.shared(value= W_values, name="W", borrow=True)
+        if w is None:
+            if w_values in None:
+                abs_band_of_weights = numpy.sqrt(6. / (n_in + n_out))
+                w_values = numpy.asarray(self.rng.uniform(low=-abs_band_of_weights,
+                                                          high=abs_band_of_weights,
+                                                          size=(n_in, n_out)),
+                                         dtype=theano.config.floatX)
+
+            self.w = theano.shared(value=w_values, name="W", borrow=True)
         else:
-            self.W = W
+            self.W = w
 
         if b is None:
             if b_values is None:
-                b_values = numpy.zeros((n_out,), dtype= theano.config.floatX)
+                b_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
             self.b = theano.shared(value=b_values, name="b", borrow=True)
         else:
             self.b = b
 
         if activation is None:
-            self.activation = lamda x: x
+            self.activation = lambda x: x
         else:
             self.activation = activation
 
-        self.params = [self.W , self.b]
+        self.params = [self.W, self.b]
 
     def get_l1(self):
         return l1_norm(self.W)
@@ -104,10 +103,11 @@ class SoftmaxLayer(BaseLayer):
     determine a class membership probability.
     """
 
-    def __init__(self, n_in, n_out, input, rng=None, W=None, b=None, W_values=None, b_values=None):
-        super(SoftmaxLayer, self).__init__(n_in, n_out, input, rng=rng, W=W, b=b, W_values=W_values, b_values=b_values)
+    def __init__(self, n_in, n_out, layer_input, rng=None, w=None, b=None, w_values=None, b_values=None):
+        super(SoftmaxLayer, self).__init__(n_in, n_out, layer_input, rng=rng, w=w, b=b, w_values=w_values,
+                                           b_values=b_values)
         self.P_y_given_x = T.nnet.softmax(T.dot(self.input, self.W)+self.b)
-        self.y_prediction = T.argmax(self.P_y_given_x, axis = 1)
+        self.y_prediction = T.argmax(self.P_y_given_x, axis=1)
         self.output = self.y_prediction
 
     def get_cost(self, target):
@@ -116,8 +116,9 @@ class SoftmaxLayer(BaseLayer):
     def get_error(self, target):
         zero_one_error(self.y_prediction, target)
 
+
 class HiddenLayer(BaseLayer):
-    def __init__(self, n_in, n_out, input, activation=None, rng=None, W=None, b=None, W_values=None, b_values=None):
-        super(HiddenLayer, self).__init__(n_in, n_out, input, activation, rng, W, b, W_values, b_values)
-        weightedSum = T.dot(self.input, self.W) + self.b
-        self.output = self.activation(weightedSum)
+    def __init__(self, n_in, n_out, layer_input, activation=None, rng=None, w=None, b=None, w_values=None, b_values=None):
+        super(HiddenLayer, self).__init__(n_in, n_out, layer_input, activation, rng, w, b, w_values, b_values)
+        weighted_sum = T.dot(self.input, self.W) + self.b
+        self.output = self.activation(weighted_sum)

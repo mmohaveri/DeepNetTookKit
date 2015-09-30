@@ -4,7 +4,8 @@ a set of cost functions for Neural Network layers.
 
 import theano.tensor as T
 
-l1_norm(w):
+
+def l1_norm(w):
     """
     Returns L1 norm of the given matrix (w).
     L1 norm is simply sum of a matrix elements.
@@ -15,7 +16,8 @@ l1_norm(w):
 
     return abs(w).sum()
 
-l2_norm(w):
+
+def l2_norm(w):
     """
     Returns L2 norm of the given matrix (w).
     L2 norm of a matrix is simply square root of the sum of square of elements of the matrix.
@@ -27,7 +29,8 @@ l2_norm(w):
 
     return T.sqrt((w ** 2).sum())
 
-l2_norm_sqr(w):
+
+def l2_norm_sqr(w):
     """
     Returns square of L2 norm of the given matrix (w).
     square of L2 norm of a matrix is simply the sum of square of elements of the matrix.
@@ -39,4 +42,4 @@ l2_norm_sqr(w):
     return (w ** 2).sum()
 
 # TODO
-# add contractive cost funciton.
+# add contractive cost function.
