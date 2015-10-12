@@ -69,7 +69,7 @@ class BaseLayer:
 
             self.w = theano.shared(value=w_values, name="W", borrow=True)
         else:
-            self.W = w
+            self.w = w
 
         if b is None:
             if b_values is None:
@@ -83,16 +83,27 @@ class BaseLayer:
         else:
             self.activation = activation
 
-        self.params = [self.W, self.b]
+        self.params = [self.w, self.b]
 
     def get_l1(self):
-        return l1_norm(self.W)
+        return l1_norm(self.w)
 
     def get_l2(self):
-        return l2_norm(self.W)
+        return l2_norm(self.w)
 
     def get_l2_sqr(self):
-        return l2_norm_sqr(self.W)
+        return l2_norm_sqr(self.w)
+
+    def get_params(self):
+        return self.params
+
+    def get_dict(self):
+        return {
+                "n_in": self.n_in,
+                "n_out": self.n_out,
+                "w_values": self.w.get_value(),
+                "b_values": self.b.get_value(),
+               }
 
 
 class SoftmaxLayer(BaseLayer):
@@ -106,19 +117,19 @@ class SoftmaxLayer(BaseLayer):
     def __init__(self, n_in, n_out, layer_input, rng=None, w=None, b=None, w_values=None, b_values=None):
         super(SoftmaxLayer, self).__init__(n_in, n_out, layer_input, rng=rng, w=w, b=b, w_values=w_values,
                                            b_values=b_values)
-        self.P_y_given_x = T.nnet.softmax(T.dot(self.input, self.W)+self.b)
+        self.P_y_given_x = T.nnet.softmax(T.dot(self.input, self.w)+self.b)
         self.y_prediction = T.argmax(self.P_y_given_x, axis=1)
         self.output = self.y_prediction
 
     def get_cost(self, target):
-        negative_log_likelihood_error(self.P_y_given_x, target)
+        return negative_log_likelihood_error(self.P_y_given_x, target)
 
     def get_error(self, target):
-        zero_one_error(self.y_prediction, target)
+        return zero_one_error(self.y_prediction, target)
 
 
 class HiddenLayer(BaseLayer):
     def __init__(self, n_in, n_out, layer_input, activation=None, rng=None, w=None, b=None, w_values=None, b_values=None):
         super(HiddenLayer, self).__init__(n_in, n_out, layer_input, activation, rng, w, b, w_values, b_values)
-        weighted_sum = T.dot(self.input, self.W) + self.b
+        weighted_sum = T.dot(self.input, self.w) + self.b
         self.output = self.activation(weighted_sum)
