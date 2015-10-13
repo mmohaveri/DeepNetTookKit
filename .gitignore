@@ -2,7 +2,7 @@
 *.csv
 *.pkl
 *.jpg
-datasets/
+assets/
 
 #Compiled files
 *.pyc
