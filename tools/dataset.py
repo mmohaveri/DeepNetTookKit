@@ -6,7 +6,7 @@ import logging
 import theano.tensor as T
 
 
-class DataSet:
+class DataSet(object):
     """
     Base class for all types of datasets.
     All dataset classes should have following data members:
@@ -86,7 +86,11 @@ class CSVDataset(DataSet):
     Here we assume that data are randomly ordered. 
     """
 
-    def __init__(self, dataset_file, train_ratio=0.3, valid_ratio=0.2, target_size=1, is_int=False):
+    def __init__(self, dataset_file, train_ratio=0.3, valid_ratio=0.2, target_size=1, is_int=False,
+                 normalization_factor=1):
+        """
+        normalization factor is the number that all inputs will be divided by, so their max become 1
+        """
         if train_ratio + valid_ratio > 1:
             logging.fatal("Sum of train ratio and valid ratio should be less than or equal to 1")
             raise Exception("Sum of train ratio and valid ratio should be less than or equal to 1")
@@ -98,15 +102,17 @@ class CSVDataset(DataSet):
         with open(dataset_file, 'rb') as f1:
             logging.info("Reading dataset from CSV file")
             csv_file = csv.reader(f1)
-            ascii_dataset = (row for row in csv_file)
-            float_dataset = ((float(cell) for cell in row) for row in ascii_dataset)
+            ascii_dataset = [row for row in csv_file]
+            float_dataset = [[float(cell) for cell in row] for row in ascii_dataset]
+
+            dataset_size = len(ascii_dataset)
 
             logging.info("Creating dataset from file's data")
-            targets = (row[0:target_size] for row in float_dataset)
-            features = (row[target_size:] for row in float_dataset)
+            targets = [row[0:target_size] for row in float_dataset]
+            features = [row[target_size:] for row in float_dataset]
 
-            number_of_train = int(numpy.floor(len(targets) * train_ratio))
-            number_of_validation = int(numpy.floor(len(targets) * valid_ratio))
+            number_of_train = int(numpy.floor(dataset_size * train_ratio))
+            number_of_validation = int(numpy.floor(dataset_size * valid_ratio))
 
             self.np_tr_y = numpy.array(targets[0:number_of_train])
             self.np_va_y = numpy.array(targets[number_of_train:(number_of_train+number_of_validation)])
@@ -115,6 +121,11 @@ class CSVDataset(DataSet):
             self.np_tr_x = numpy.array(features[0:number_of_train])
             self.np_va_x = numpy.array(features[number_of_train:(number_of_train+number_of_validation)])
             self.np_te_x = numpy.array(features[(number_of_train+number_of_validation):])
+
+            if normalization_factor != 1:
+                self.np_tr_x /= normalization_factor
+                self.np_va_x /= normalization_factor
+                self.np_te_x /= normalization_factor
 
             all_dataset = ((self.np_tr_x, self.np_tr_y),
                            (self.np_va_x, self.np_va_y),
