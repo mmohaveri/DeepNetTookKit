@@ -7,7 +7,7 @@ from elements.cost_functions import l1_norm, l2_norm, l2_norm_sqr
 from elements.error_functions import negative_log_likelihood_error, zero_one_error
 
 
-class BaseLayer:
+class BaseLayer(object):
     """
     Base class for all neural network layers.
     """
@@ -54,13 +54,13 @@ class BaseLayer:
 
         self.activation = activation
 
-        if rng in None:
+        if rng is None:
             self.rng = numpy.random.RandomState(int(time.time()))
         else:
             self.rng = rng
 
         if w is None:
-            if w_values in None:
+            if w_values is None:
                 abs_band_of_weights = numpy.sqrt(6. / (n_in + n_out))
                 w_values = numpy.asarray(self.rng.uniform(low=-abs_band_of_weights,
                                                           high=abs_band_of_weights,
@@ -125,7 +125,8 @@ class SoftmaxLayer(BaseLayer):
         return negative_log_likelihood_error(self.P_y_given_x, target)
 
     def get_error(self, target):
-        return zero_one_error(self.y_prediction, target)
+        # prediction is a vector and target is a column matrix, so we have to convert prediction to a column matrix.
+        return zero_one_error(self.y_prediction.dimshuffle(0, "x"), target)
 
 
 class HiddenLayer(BaseLayer):
