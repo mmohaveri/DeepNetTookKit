@@ -1,5 +1,6 @@
 import cPickle
 import collections
+from datetime import datetime
 import numpy
 import sys
 import theano
@@ -166,6 +167,7 @@ class ShallowNetwork(BaseNetwork):
         # Project settings
         batch_size = 20
         learning_rate = 0.01
+        momentum_rate = 0.95
         n_epochs = 1000
 
         dataset = NumpyDataset(dataset_address)
@@ -190,12 +192,19 @@ class ShallowNetwork(BaseNetwork):
                                           self.get_output(): valid_set_y[index * batch_size:(index + 1) * batch_size]
                                          })
 
+        delta_params = [theano.shared(value=numpy.zeros(param.get_value(borrow=True).shape), borrow=True)
+                        for param in self.get_params()]
+
         params_g = [T.grad(self.get_cost(), param) for param in self.get_params()]
 
         # Normal SGD
-        updates = [(param, param - learning_rate * param_g) for param, param_g in zip(self.get_params(), params_g)]
+        # updates = [(param, param - learning_rate * param_g) for param, param_g in zip(self.get_params(), params_g)]
 
         # Momentum SGD
+        updates = [(delta_param, -learning_rate*param_g + momentum_rate*delta_param)
+                   for param_g, delta_param in zip(params_g, delta_params)]
+
+        updates += [(param, param + delta_param) for param, delta_param in zip(self.get_params(), delta_params)]
 
         train_model = theano.function(inputs=[index], outputs=self.get_cost(), updates=updates,
                                       givens=
@@ -227,14 +236,14 @@ class ShallowNetwork(BaseNetwork):
 
             for minibatch_index in xrange(n_train_batches):
                 # iteration number
-                itteration_number = (epoch - 1) * n_train_batches + minibatch_index
+                iteration_number = (epoch - 1) * n_train_batches + minibatch_index
 
-                # Save itteration history
+                # Save iteration history
                 minibatch_avg_cost = train_model(minibatch_index)
-                train_error_history[itteration_number] = minibatch_avg_cost
+                train_error_history[iteration_number] = minibatch_avg_cost
 
                 # validate every validation_frequency time :)
-                if (itteration_number + 1) % validation_frequency == 0:
+                if (iteration_number + 1) % validation_frequency == 0:
                     # compute zero-one loss on validation set
                     validation_losses = [validate_model(i) for i in xrange(n_valid_batches)]
                     this_validation_loss = numpy.mean(validation_losses)
@@ -244,29 +253,30 @@ class ShallowNetwork(BaseNetwork):
                     sys.stdout.flush()
 
                     # Save validation history
-                    validation_error_history[itteration_number] = this_validation_loss
+                    validation_error_history[iteration_number] = this_validation_loss
 
                     # if we got the best validation score until now
                     if this_validation_loss < best_validation_loss:
                         # improve patience if loss improvement is good enough
                         if this_validation_loss < best_validation_loss * improvement_threshold:
-                            patience = max(patience, itteration_number * patience_increase)
+                            patience = max(patience, iteration_number * patience_increase)
 
                         best_validation_loss = this_validation_loss
-                        best_iter = itteration_number
+                        best_iter = iteration_number
 
                         # test it on the test set
                         test_losses = [test_model(i) for i in xrange(n_test_batches)]
                         test_score = numpy.mean(test_losses)
 
-                if patience <= itteration_number:
+                if patience <= iteration_number:
                     done_looping = True
                     break
         plt.plot(train_error_history.keys(), train_error_history.values(), 'r',
                  validation_error_history.keys(), validation_error_history.values(), 'b')
 
-        print validation_error_history.keys()
-        plt.savefig("assets/outputs/image.jpg")
+        print "\nTraining is Done"
+        sys.stdout.flush()
+        plt.savefig("assets/outputs/image-%s-%2.4f.jpg" % (str(datetime.now().replace(microsecond=0)), test_score * 100.))
         print(('Optimization complete. Best validation score of %f %% '
                'obtained at iteration %i, with test performance %f %%') %
               (best_validation_loss * 100., best_iter + 1, test_score * 100.))
