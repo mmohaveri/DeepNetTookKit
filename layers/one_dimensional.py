@@ -52,8 +52,6 @@ class BaseLayer(object):
         self.n_in = n_in
         self.n_out = n_out
 
-        self.activation = activation
-
         if rng is None:
             self.rng = numpy.random.RandomState(int(time.time()))
         else:
